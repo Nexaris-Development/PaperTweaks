@@ -20,6 +20,7 @@
 package me.machinemaker.papertweaks.modules.experimental.xpmanagement;
 
 import me.machinemaker.papertweaks.modules.ModuleListener;
+import java.util.Map;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
@@ -52,9 +53,20 @@ public class PlayerListener implements ModuleListener {
         event.setUseItemInHand(Event.Result.ALLOW);
 
         final Player player = event.getPlayer();
-        player.giveExp(-12);
-        event.getItem().setAmount(event.getItem().getAmount() - 1);
-        player.getInventory().addItem(new ItemStack(Material.EXPERIENCE_BOTTLE));
+        final ItemStack heldBottles = event.getItem();
+
+        final int wanted = player.isSneaking() ? 10 : 1; /* 10 bottles when sneaking, else 1 */
+        final int affordable = player.calculateTotalExperiencePoints() / 12; /* how many times we can get bottles of 12xp */
+        final int count = Math.min(wanted, Math.min(heldBottles.getAmount(), affordable));
+        player.giveExp(-12 * count);
+        event.getItem().setAmount(event.getItem().getAmount() - count);
+
+        final Map<Integer, ItemStack> leftovers =
+            player.getInventory().addItem(new ItemStack(Material.EXPERIENCE_BOTTLE, count));
+        for (final ItemStack leftover : leftovers.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+        }
+
         player.playSound(player.getLocation(), Sound.ITEM_BOTTLE_FILL_DRAGONBREATH, SoundCategory.PLAYERS, 1f, 1.25f);
     }
 }
